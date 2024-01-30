@@ -15,6 +15,7 @@ typedef pair<int, int> ii;
 
 int n; 
 std::queue<ii> task_queue;
+std::mutex task_mutex;
 
 /*
 This function generates all the intervals for merge sort iteratively, given the
@@ -38,12 +39,26 @@ e     : int         - end index (inclusive) of merge
 */
 void merge(vector<int>& array, int s, int e);
 
-void thread_merge(vector<int>& array, vector<std::mutex> &locks, int s, int e) {
-    for (int i = s; i <= e; i++) {
-        std::unique_lock<std::mutex> lock(locks[i]); 
-    }
+void thread_merge(vector<int>& array, vector<std::mutex> &locks) {
+    while (!task_queue.empty()) {
 
-    merge(array, s, e); 
+        std::unique_lock<std::mutex> lock(task_mutex);
+        ii temp = task_queue.front();
+        task_queue.pop(); 
+        lock.unlock(); 
+
+        int s = temp.first; 
+        int e = temp.second; 
+
+        vector<std::unique_lock<std::mutex>> lockArray;
+
+        // aquire locks in range 
+        for (int i = s; i <= e; i++) {
+            lockArray.emplace_back(locks[i]);
+        } 
+
+        merge(array, s, e);
+    }
 }
 
 int main() {
@@ -52,15 +67,16 @@ int main() {
 
     // TODO: Get array size and thread count from user
     n = 10; 
-    int thread_count = 5; 
-    std::uniform_int_distribution<int> dist(1, std::pow(2, 23));
+    int thread_count = 4; 
+    std::uniform_int_distribution<int> dist(1, n);
 
     // TODO: Generate a random array of given size
     std::vector<int> array(n); 
     for (int &num : array) {
         num = dist(rng);
-        std::cout << num << std::endl; 
+        std::cout << num << ", ";
     }
+    std::cout << "" << std::endl; 
 
     // TODO: Call the generate_intervals method to generate the merge sequence
     vector<ii> intervals = generate_intervals(0, n - 1); 
@@ -69,12 +85,24 @@ int main() {
     }
 
     // TODO: Call merge on each interval in sequence
-    std::vector<std::mutex> mutexArray(n);
+    std::vector<std::mutex> mutex_array(n);
 
     // Once you get the single-threaded version to work, it's time to implement 
     // the concurrent version. Good luck :)
+    std::vector<std::thread> threads;
 
-    
+    for (int i = 0; i < thread_count; i++) {
+        threads.emplace_back(thread_merge, std::ref(array), std::ref(mutex_array));
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    for (int& element : array) {
+        std::cout << element << ", ";
+    }
+    std::cout << "" << std::endl;
 }
 
 vector<ii> generate_intervals(int start, int end) {
@@ -124,10 +152,8 @@ void merge(vector<int>& array, int s, int e) {
     int l_ptr = 0, r_ptr = 0;
 
     for (int i = s; i <= e; i++) {
-        if (r_ptr == (int)right.size() || left[l_ptr] <= right[r_ptr]) {
-            // aquire the lock[i] 
+        if (r_ptr == (int)right.size() || (l_ptr != (int)left.size() && left[l_ptr] <= right[r_ptr])) {
             array[i] = left[l_ptr];
-            // release lock[i] 
             l_ptr++;
         }
         else {
