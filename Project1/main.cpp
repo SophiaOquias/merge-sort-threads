@@ -43,6 +43,9 @@ void thread_merge(vector<int>& array, vector<std::mutex> &locks) {
     while (!task_queue.empty()) {
 
         std::unique_lock<std::mutex> lock(task_mutex);
+        if (task_queue.empty()) {
+            break; 
+        }
         ii temp = task_queue.front();
         task_queue.pop(); 
         lock.unlock(); 
@@ -63,11 +66,11 @@ void thread_merge(vector<int>& array, vector<std::mutex> &locks) {
 
 int main() {
     // TODO: Seed your randomizer
-    std::mt19937 rng(std::time(nullptr)); 
+    std::mt19937 rng(42); 
 
     // TODO: Get array size and thread count from user
-    n = 10; 
-    int thread_count = 4; 
+    n = 15; 
+    int thread_count = 30; 
     std::uniform_int_distribution<int> dist(1, n);
 
     // TODO: Generate a random array of given size
