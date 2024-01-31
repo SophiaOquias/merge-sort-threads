@@ -126,6 +126,8 @@ int main() {
 
     bool isSorted = is_sorted(array.begin(), array.end());
     cout << "Array is " << (isSorted ? "sorted" : "not sorted") << endl;
+
+    print_array(array); 
 }
 
 void print_array(vector<int>& array) {
