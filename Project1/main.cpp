@@ -8,6 +8,7 @@
 #include <ctime>
 #include <cmath>
 #include <queue>
+#include <algorithm> 
 
 using namespace std;
 
@@ -69,17 +70,35 @@ int main() {
     std::mt19937 rng(42); 
 
     // TODO: Get array size and thread count from user
-    n = 15; 
-    int thread_count = 30; 
+    n = pow(2, 23);
+    int thread_count = 128;
     std::uniform_int_distribution<int> dist(1, n);
 
     // TODO: Generate a random array of given size
-    std::vector<int> array(n); 
+    /*std::vector<int> array(n);
     for (int &num : array) {
         num = dist(rng);
         std::cout << num << ", ";
+    }*/
+    std::vector<int> array(n);
+    for (int i = 0; i < n; ++i) {
+        array[i] = i + 1;
     }
-    std::cout << "" << std::endl; 
+    random_shuffle(array.begin(), array.end(), [](int n) { return rand() % n; });
+
+    // Print the shuffled array
+    /* 
+    cout << "Shuffled Array: ";
+    for (int num : array) {
+        cout << num << " ";
+    }
+    cout << endl;
+    */
+    
+    //std::cout << "" << std::endl; 
+
+    auto start = chrono::high_resolution_clock::now();
+
 
     // TODO: Call the generate_intervals method to generate the merge sequence
     vector<ii> intervals = generate_intervals(0, n - 1); 
@@ -102,10 +121,19 @@ int main() {
         thread.join();
     }
 
+    auto end = chrono::high_resolution_clock::now();
+    chrono::duration<double> duration = end - start;
+
+    /*
     for (int& element : array) {
         std::cout << element << ", ";
     }
-    std::cout << "" << std::endl;
+    std::cout << "" << std::endl;*/
+    // Check if the array is sorted
+    bool isSorted = is_sorted(array.begin(), array.end());
+    cout << "Concurrent execution time: " << duration.count() << " seconds" << endl;
+    cout << "Array is " << (isSorted ? "sorted" : "not sorted") << endl;
+
 }
 
 vector<ii> generate_intervals(int start, int end) {
