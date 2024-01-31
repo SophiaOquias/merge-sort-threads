@@ -53,13 +53,20 @@ void thread_merge(vector<int>& array) {
             int s = temp.first;
             int e = temp.second;
 
-            if (s < 0 || e < 0) {
-                continue;
-            }
+            // if (s < 0 || e < 0) {
+            //     continue;
+            // }
 
             merge(array, s, e);
         }
+        else {
+            lock.unlock(); 
+        }
     }
+}
+
+void print_interval(ii interval) {
+    std::cout << "(" << interval.first << ", " << interval.second << ")" << std::endl; 
 }
 
 int main() {
@@ -67,7 +74,7 @@ int main() {
     std::mt19937 rng(42); 
 
     // TODO: Get array size and thread count from user
-    n = 10000000; 
+    n = 10000; 
     int thread_count = 10; 
     std::uniform_int_distribution<int> dist(1, n);
 
@@ -103,6 +110,7 @@ int main() {
         
         int start = arr_ptr; 
         for (int i = arr_ptr; i < start + num_leaves; i++) {
+            std::unique_lock<std::mutex> lock(task_mutex);
             task_queue.push(intervals[arr_ptr]); 
             arr_ptr++;
         }
