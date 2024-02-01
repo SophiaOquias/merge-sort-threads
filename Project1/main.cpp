@@ -10,6 +10,7 @@
 #include <queue>
 #include <condition_variable>
 #include <semaphore>
+#include <iostream>
 
 using namespace std;
 
@@ -52,20 +53,42 @@ int main() {
     std::mt19937 rng(42); 
 
     // TODO: Get array size and thread count from user
-    n = 100000; 
-    int thread_count = 100; 
+    n = pow(2, 23);
+    int thread_count = 1024; 
     std::uniform_int_distribution<int> dist(1, n);
 
     // TODO: Generate a random array of given size
+    /*
     std::vector<int> array(n); 
     for (int &num : array) {
         num = dist(rng);
+    }*/
+
+    std::vector<int> array(n);
+    for (int i = 0; i < n; ++i) {
+        array[i] = i + 1;
     }
+    
+    // Shuffle the array using mt19937 and shuffle
+    std::shuffle(array.begin(), array.end(), rng);
+
+    /* 
+    cout << "Shuffled Array: ";
+    for (int num : array) {
+        cout << num << " ";
+    }
+    cout << endl;
+    */
+
 
     // TODO: Call the generate_intervals method to generate the merge sequence
     vector<ii> intervals = generate_intervals(0, n - 1); 
 
     // TODO: Call merge on each interval in sequence
+
+    //Start timer
+    auto start = chrono::high_resolution_clock::now();
+
 
     // Once you get the single-threaded version to work, it's time to implement 
     // the concurrent version. Good luck :)
@@ -108,7 +131,18 @@ int main() {
         thread.join();
     }
 
+    auto end = chrono::high_resolution_clock::now();
+    chrono::duration<double> duration = end - start;
+
+    /* Print array
+    for (int num : array) {
+        cout << num << " ";
+    }
+    cout << endl;
+    */
+
     bool isSorted = is_sorted(array.begin(), array.end());
+    cout << "Concurrent execution time: " << duration.count() << " seconds" << endl;
     cout << "Array is " << (isSorted ? "sorted" : "not sorted") << endl;
 
 }
