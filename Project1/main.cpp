@@ -9,14 +9,17 @@
 #include <cmath>
 #include <queue>
 #include <condition_variable>
+#include <semaphore>
 
 using namespace std;
 
 typedef pair<int, int> ii;
 int n; 
-std::queue<ii> task_queue;
-std::mutex task_mutex;
-std::condition_variable task_condition;
+queue<ii> task_queue;
+mutex task_mutex;
+condition_variable task_condition;
+condition_variable wait_condition; 
+atomic<int> task_count(0);
 
 bool flag = true; 
 
@@ -42,43 +45,15 @@ e     : int         - end index (inclusive) of merge
 */
 void merge(vector<int>& array, int s, int e);
 
-void print_array(vector<int>& array);
-
-void thread_merge(vector<int>& array) {
-    while (flag) {
-
-        std::unique_lock<std::mutex> lock(task_mutex);
-
-        if (!flag && task_queue.empty()) {
-            lock.unlock();
-            break;  // Exit the loop if termination is requested and the queue is empty
-        }
-
-        task_condition.wait(lock, [&]() { return !flag || !task_queue.empty(); }); 
-
-        ii temp = task_queue.front();
-        task_queue.pop();
-        task_condition.notify_one();
-        lock.unlock();
-
-        int s = temp.first;
-        int e = temp.second;
-
-        merge(array, s, e);
-    }
-}
-
-void print_interval(ii interval) {
-    std::cout << "(" << interval.first << ", " << interval.second << ")" << std::endl; 
-}
+void thread_merge(vector<int>& array); 
 
 int main() {
     // TODO: Seed your randomizer
     std::mt19937 rng(42); 
 
     // TODO: Get array size and thread count from user
-    n = 10; 
-    int thread_count = 10; 
+    n = 1000; 
+    int thread_count = 100; 
     std::uniform_int_distribution<int> dist(1, n);
 
     // TODO: Generate a random array of given size
@@ -94,41 +69,37 @@ int main() {
 
     // Once you get the single-threaded version to work, it's time to implement 
     // the concurrent version. Good luck :)
-    std::vector<std::thread> threads;
+    vector<thread> threads;
 
     for (int i = 0; i < thread_count; i++) {
         threads.emplace_back(thread_merge, std::ref(array));
     }
 
-    int max_depth = static_cast<int>(std::floor(std::log2(n))) + 1; // depth = log_2(n) + 1
+    int max_depth = static_cast<int>(floor(log2(n))) + 1; // depth = floor(log_2(n)) + 1
     int arr_ptr = 0; 
 
     for (int k = max_depth + 1; k > 0; k--) {
         int num_leaves = static_cast<int>(pow(2, k - 1));
 
         if (k == max_depth + 1 && n != num_leaves) {
-            int d = num_leaves - n; 
-            num_leaves = n - d; 
+            num_leaves = 2 * n - num_leaves; 
         }
         
         int start = arr_ptr; 
         for (int i = arr_ptr; i < start + num_leaves; i++) {
             {
-                std::unique_lock<std::mutex> lock(task_mutex);
+                unique_lock<mutex> lock(task_mutex);
                 task_queue.push(intervals[arr_ptr]);
+                task_count.fetch_sub(1);
                 arr_ptr++;
             }
 
             task_condition.notify_one();
         }
 
-        // Wait for all tasks to be processed
-        for (int i = 0; i < num_leaves; i++) {
-            std::unique_lock<std::mutex> lock(task_mutex);
-            task_condition.wait(lock, [&]() { return task_queue.empty() || !flag; });
-        }
+        unique_lock<mutex> lock(task_mutex);
+        wait_condition.wait(lock, [&]() { return task_count.load() == 0 || !flag; });
 
-        std::cout << k << std::endl; 
     }
 
     flag = false; 
@@ -139,16 +110,35 @@ int main() {
     }
 
     bool isSorted = is_sorted(array.begin(), array.end());
-    std::cout << "Array is " << (isSorted ? "sorted" : "not sorted") << endl;
+    cout << "Array is " << (isSorted ? "sorted" : "not sorted") << endl;
 
 }
 
-void print_array(vector<int>& array) {
-    for (int& element : array) {
-        std::cout << element << ", ";
-    }
+void thread_merge(vector<int>& array) {
+    while (flag) {
 
-    std::cout << "" << std::endl;
+        unique_lock<std::mutex> lock(task_mutex);
+
+        task_condition.wait(lock, [&]() { return !flag || !task_queue.empty(); });
+
+        if (!flag && task_queue.empty()) {
+            lock.unlock();
+            task_condition.notify_all();
+            continue;  // Exit the loop if termination is requested and the queue is empty
+        }
+
+        ii temp = task_queue.front();
+        task_queue.pop();
+        lock.unlock();
+
+        int s = temp.first;
+        int e = temp.second;
+
+        merge(array, s, e);
+
+        task_count.fetch_add(1);
+        wait_condition.notify_one();
+    }
 }
 
 vector<ii> generate_intervals(int start, int end) {
