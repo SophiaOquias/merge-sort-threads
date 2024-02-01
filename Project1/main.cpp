@@ -8,6 +8,7 @@
 #include <ctime>
 #include <cmath>
 #include <queue>
+#include <condition_variable>
 
 using namespace std;
 
@@ -15,6 +16,7 @@ typedef pair<int, int> ii;
 int n; 
 std::queue<ii> task_queue;
 std::mutex task_mutex;
+std::condition_variable task_condition;
 
 bool flag = true; 
 
@@ -44,24 +46,25 @@ void print_array(vector<int>& array);
 
 void thread_merge(vector<int>& array) {
     while (flag) {
+
         std::unique_lock<std::mutex> lock(task_mutex);
-        if (!task_queue.empty()) {
-            ii temp = task_queue.front();
-            task_queue.pop();
+
+        if (!flag && task_queue.empty()) {
             lock.unlock();
-
-            int s = temp.first;
-            int e = temp.second;
-
-            // if (s < 0 || e < 0) {
-            //     continue;
-            // }
-
-            merge(array, s, e);
+            break;  // Exit the loop if termination is requested and the queue is empty
         }
-        else {
-            lock.unlock(); 
-        }
+
+        task_condition.wait(lock, [&]() { return !flag || !task_queue.empty(); }); 
+
+        ii temp = task_queue.front();
+        task_queue.pop();
+        task_condition.notify_one();
+        lock.unlock();
+
+        int s = temp.first;
+        int e = temp.second;
+
+        merge(array, s, e);
     }
 }
 
@@ -74,7 +77,7 @@ int main() {
     std::mt19937 rng(42); 
 
     // TODO: Get array size and thread count from user
-    n = 10000; 
+    n = 10; 
     int thread_count = 10; 
     std::uniform_int_distribution<int> dist(1, n);
 
@@ -110,24 +113,34 @@ int main() {
         
         int start = arr_ptr; 
         for (int i = arr_ptr; i < start + num_leaves; i++) {
-            std::unique_lock<std::mutex> lock(task_mutex);
-            task_queue.push(intervals[arr_ptr]); 
-            arr_ptr++;
+            {
+                std::unique_lock<std::mutex> lock(task_mutex);
+                task_queue.push(intervals[arr_ptr]);
+                arr_ptr++;
+            }
+
+            task_condition.notify_one();
         }
 
-        while (!task_queue.empty()) { }
+        // Wait for all tasks to be processed
+        for (int i = 0; i < num_leaves; i++) {
+            std::unique_lock<std::mutex> lock(task_mutex);
+            task_condition.wait(lock, [&]() { return task_queue.empty() || !flag; });
+        }
+
+        std::cout << k << std::endl; 
     }
 
     flag = false; 
+    task_condition.notify_all();
 
     for (auto& thread : threads) {
         thread.join();
     }
 
     bool isSorted = is_sorted(array.begin(), array.end());
-    cout << "Array is " << (isSorted ? "sorted" : "not sorted") << endl;
+    std::cout << "Array is " << (isSorted ? "sorted" : "not sorted") << endl;
 
-    print_array(array); 
 }
 
 void print_array(vector<int>& array) {
