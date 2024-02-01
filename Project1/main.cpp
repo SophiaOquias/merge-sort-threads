@@ -52,7 +52,7 @@ int main() {
     std::mt19937 rng(42); 
 
     // TODO: Get array size and thread count from user
-    n = 1000; 
+    n = 100000; 
     int thread_count = 100; 
     std::uniform_int_distribution<int> dist(1, n);
 
@@ -99,7 +99,6 @@ int main() {
 
         unique_lock<mutex> lock(task_mutex);
         wait_condition.wait(lock, [&]() { return task_count.load() == 0 || !flag; });
-
     }
 
     flag = false; 
