@@ -53,16 +53,13 @@ int main() {
     std::mt19937 rng(42); 
 
     // TODO: Get array size and thread count from user
-    n = pow(2, 23);
-    int thread_count = 1024; 
-    std::uniform_int_distribution<int> dist(1, n);
+    int thread_count; 
+    cout << "Input n: "; 
+    cin >> n; 
+    cout << "Input a thread count: ";
+    cin >> thread_count; 
 
     // TODO: Generate a random array of given size
-    /*
-    std::vector<int> array(n); 
-    for (int &num : array) {
-        num = dist(rng);
-    }*/
 
     std::vector<int> array(n);
     for (int i = 0; i < n; ++i) {
@@ -71,15 +68,6 @@ int main() {
     
     // Shuffle the array using mt19937 and shuffle
     std::shuffle(array.begin(), array.end(), rng);
-
-    /* 
-    cout << "Shuffled Array: ";
-    for (int num : array) {
-        cout << num << " ";
-    }
-    cout << endl;
-    */
-
 
     // TODO: Call the generate_intervals method to generate the merge sequence
     vector<ii> intervals = generate_intervals(0, n - 1); 
@@ -134,12 +122,12 @@ int main() {
     auto end = chrono::high_resolution_clock::now();
     chrono::duration<double> duration = end - start;
 
-    /* Print array
+    /* Print array */ 
     for (int num : array) {
         cout << num << " ";
     }
     cout << endl;
-    */
+    
 
     bool isSorted = is_sorted(array.begin(), array.end());
     cout << "Concurrent execution time: " << duration.count() << " seconds" << endl;
